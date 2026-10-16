@@ -36,7 +36,7 @@ Then add it to `builtin_rules`, give it a name, a severity and a one-sentence de
 
 ## Add a server's metric names
 
-`src/prom.rs` has a `MetricNames` table with a list of candidate names per field. Add a second table for the new server and a test that parses a real sample page.
+`src/prom.rs` has one `Profile` per server (`VLLM`, `SGLANG`): a name prefix used for auto-detection and a list of candidate metric names per signal. Add a profile for the new server, put it in `PROFILES`, and add a test that parses lines copied from that server's own documentation or a real page. Record where each name came from in `docs/VALIDATION.md`. If the server has no metric for a signal, leave its list empty: the rules that need it are disabled and the web page says so.
 
 ## Figures
 

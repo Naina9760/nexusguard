@@ -88,6 +88,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 8px 20px 40px; }
 .rule p { margin: 6px 0; }
 .rule .pattern { display: block; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); white-space: normal; overflow-wrap: anywhere; }
 .rule .meta { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+.rule .note { color: var(--warn); font-size: 12.5px; margin: 8px 0 0; }
 
 .events { list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 8px; }
 .events:empty { display: none; }

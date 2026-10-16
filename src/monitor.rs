@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 
 use serde::Serialize;
 
-use crate::formula::Verdict;
+use crate::formula::{Signal, Verdict};
 use crate::rules::{Rule, Severity};
 use crate::sample::Sample;
 use crate::trace::{Trace, TraceError};
@@ -42,11 +42,25 @@ pub struct Frame {
     pub waiting: f64,
     pub kv_usage: Option<f64>,
     pub token_rate: Option<f64>,
+    pub prompt_rate: Option<f64>,
     pub preemption_rate: Option<f64>,
     /// One verdict per rule, in rule order.
     pub verdicts: Vec<Verdict>,
     /// Whether each rule was firing after this sample.
     pub firing: Vec<bool>,
+}
+
+impl Frame {
+    /// Whether this frame carries a value for `signal`. The first frame has no
+    /// rates yet, and some servers do not export every metric.
+    pub fn has(&self, signal: Signal) -> bool {
+        match signal {
+            Signal::Running | Signal::Waiting => true,
+            Signal::KvUsage => self.kv_usage.is_some(),
+            Signal::TokenRate | Signal::ProgressRate => self.token_rate.is_some(),
+            Signal::PreemptionRate => self.preemption_rate.is_some(),
+        }
+    }
 }
 
 /// How many frames the monitor keeps for display by default.
@@ -58,6 +72,7 @@ pub struct Monitor {
     firing: Vec<bool>,
     frames: VecDeque<Frame>,
     history: usize,
+    max_gap: f64,
 }
 
 impl Monitor {
@@ -77,7 +92,21 @@ impl Monitor {
             firing,
             frames: VecDeque::new(),
             history: history.max(1),
+            max_gap: f64::INFINITY,
         }
+    }
+
+    /// Observations further apart than this many seconds do not count as
+    /// continuous coverage (see `formula`). Live monitoring sets it from the
+    /// scrape interval, so an outage inside a rule's window cannot be mistaken
+    /// for evidence. The default is no limit.
+    pub fn with_max_gap(mut self, secs: f64) -> Self {
+        self.max_gap = if secs.is_finite() && secs > 0.0 {
+            secs
+        } else {
+            f64::INFINITY
+        };
+        self
     }
 
     pub fn rules(&self) -> &[Rule] {
@@ -107,7 +136,7 @@ impl Monitor {
         let verdicts: Vec<Verdict> = self
             .rules
             .iter()
-            .map(|r| r.pattern.eval(observations))
+            .map(|r| r.pattern.eval_with_gap(observations, self.max_gap))
             .collect();
         let latest = observations.back().expect("a sample was just pushed");
 
@@ -146,6 +175,7 @@ impl Monitor {
             waiting: latest.sample.waiting,
             kv_usage: latest.sample.kv_usage,
             token_rate: latest.token_rate,
+            prompt_rate: latest.prompt_rate,
             preemption_rate: latest.preemption_rate,
             verdicts,
             firing: self.firing.clone(),

@@ -58,6 +58,7 @@ fn build(steps: &[Step]) -> Vec<Sample> {
                 running: f64::from(s.running),
                 waiting: f64::from(s.waiting),
                 generation_tokens_total: tokens,
+                prompt_tokens_total: None,
                 kv_usage: s.kv,
                 preemptions_total: s.preempt_increase.map(|_| preempt),
             }
@@ -158,5 +159,32 @@ proptest! {
             a.clone().or(b.clone()).eval(tr.observations()),
             b.or(a).eval(tr.observations())
         );
+    }
+
+    #[test]
+    fn gap_awareness_can_only_remove_certainty_never_flip_a_verdict(
+        steps in prop::collection::vec(step(), 1..60), f in atom(), w in 0.0f64..40.0, gap in 0.5f64..20.0
+    ) {
+        let tr = trace_of(&build(&steps));
+        for formula in [f.clone().historically(w), f.clone().once(w), f.clone().historically(w).once(w)] {
+            let unlimited = formula.eval(tr.observations());
+            let limited = formula.eval_with_gap(tr.observations(), gap);
+            prop_assert!(
+                limited == unlimited || limited == Verdict::Unknown,
+                "unlimited {:?} but limited {:?}", unlimited, limited
+            );
+        }
+    }
+
+    #[test]
+    fn a_longer_always_window_still_implies_a_shorter_one_under_a_gap_limit(
+        steps in prop::collection::vec(step(), 1..60), f in atom(), w1 in 0.0f64..20.0, extra in 0.0f64..20.0, gap in 0.5f64..20.0
+    ) {
+        let tr = trace_of(&build(&steps));
+        let long = f.clone().historically(w1 + extra).eval_with_gap(tr.observations(), gap);
+        let short = f.historically(w1).eval_with_gap(tr.observations(), gap);
+        if long == Verdict::True {
+            prop_assert_eq!(short, Verdict::True);
+        }
     }
 }

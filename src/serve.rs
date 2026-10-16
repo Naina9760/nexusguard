@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
-use crate::formula::Verdict;
+use crate::formula::{Signal, Verdict};
 use crate::monitor::{Event, Monitor};
 use crate::render::{timeline_svg, RenderOptions};
 
@@ -35,6 +35,8 @@ pub struct Shared {
     pub events: VecDeque<Event>,
     pub mode: String,
     pub scrape_error: Option<String>,
+    /// Which server profile read the last page (`vllm`, `sglang`), once known.
+    pub server: Option<String>,
     pub kv_threshold: Option<f64>,
     pub started: Instant,
 }
@@ -46,6 +48,7 @@ impl Shared {
             events: VecDeque::new(),
             mode: mode.into(),
             scrape_error: None,
+            server: None,
             kv_threshold,
             started: Instant::now(),
         }
@@ -272,8 +275,27 @@ fn state_json(s: &Shared) -> Value {
             let verdict = latest
                 .and_then(|f| f.verdicts.get(i).copied())
                 .unwrap_or(Verdict::Unknown);
+            // Rates need two samples, so they are not "missing" on the first one.
+            let missing: Vec<&str> = latest
+                .map(|f| {
+                    r.pattern
+                        .signals()
+                        .into_iter()
+                        .filter(|sig| {
+                            let is_rate = matches!(
+                                sig,
+                                Signal::TokenRate | Signal::ProgressRate | Signal::PreemptionRate
+                            );
+                            (frames.len() >= 2 || !is_rate) && !f.has(*sig)
+                        })
+                        .map(Signal::name)
+                        .collect()
+                })
+                .unwrap_or_default();
             let state = if firing {
                 "firing"
+            } else if !missing.is_empty() {
+                "unavailable"
             } else if verdict == Verdict::False {
                 "ok"
             } else {
@@ -286,12 +308,14 @@ fn state_json(s: &Shared) -> Value {
                 "pattern": r.pattern.to_string(),
                 "lookback_s": r.pattern.lookback(),
                 "state": state,
+                "missing": missing,
             })
         })
         .collect();
 
     json!({
         "mode": s.mode,
+        "server": s.server,
         "uptime_s": s.started.elapsed().as_secs_f64(),
         "scrape_error": s.scrape_error,
         "latest": latest.map(|f| json!({

@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 /// A single scrape of the server's metrics.
 ///
 /// `running`, `waiting` and `generation_tokens_total` are required because every
-/// built-in rule needs them. `kv_usage` and `preemptions_total` are optional:
-/// servers and versions differ, and a rule that needs a missing signal reports
-/// `Unknown` instead of pretending the value was zero.
+/// built-in rule needs them. The rest are optional: servers and versions
+/// differ, and a rule that needs a missing signal reports `Unknown` instead of
+/// pretending the value was zero.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Sample {
     /// Seconds on any monotonic clock. Only differences matter.
@@ -18,6 +18,11 @@ pub struct Sample {
     pub waiting: f64,
     /// Cumulative generated tokens (a counter).
     pub generation_tokens_total: f64,
+    /// Cumulative prompt tokens processed (a counter). Servers update it as
+    /// prefill proceeds, so it moves while a long prompt is being read even
+    /// though no token has been generated yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt_tokens_total: Option<f64>,
     /// Fraction of KV cache in use, 0.0 to 1.0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kv_usage: Option<f64>,
@@ -32,6 +37,7 @@ impl Sample {
             && self.running.is_finite()
             && self.waiting.is_finite()
             && self.generation_tokens_total.is_finite()
+            && self.prompt_tokens_total.map_or(true, f64::is_finite)
             && self.kv_usage.map_or(true, f64::is_finite)
             && self.preemptions_total.map_or(true, f64::is_finite)
     }
@@ -45,7 +51,19 @@ impl Sample {
 pub struct Observation {
     pub sample: Sample,
     pub token_rate: Option<f64>,
+    pub prompt_rate: Option<f64>,
     pub preemption_rate: Option<f64>,
+}
+
+impl Observation {
+    /// Tokens per second of any kind: generated plus prompt tokens processed.
+    ///
+    /// A long prompt being read produces no output tokens for a while but is
+    /// still progress. A server that does not export a prompt counter is
+    /// treated as having no prompt progress.
+    pub fn progress_rate(&self) -> Option<f64> {
+        self.token_rate.map(|t| t + self.prompt_rate.unwrap_or(0.0))
+    }
 }
 
 /// Increase of a counter between two scrapes, following the Prometheus rule

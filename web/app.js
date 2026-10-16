@@ -41,12 +41,13 @@ function renderRules(rules) {
     head.className = "rule-head";
     const dot = document.createElement("span");
     dot.className = "dot " + (r.state === "firing" ? "firing " + r.severity : r.state === "ok" ? "ok" : "");
+    const unavailable = r.state === "unavailable";
     const name = document.createElement("span");
     name.className = "rule-name";
     name.textContent = r.name;
     const state = document.createElement("span");
     state.className = "rule-state";
-    state.textContent = r.state === "firing" ? "firing" : r.state === "ok" ? "ok" : "not enough data yet";
+    state.textContent = r.state === "firing" ? "firing" : r.state === "ok" ? "ok" : unavailable ? "unavailable" : "not enough data yet";
     head.append(dot, name, state);
 
     const desc = document.createElement("p");
@@ -59,8 +60,26 @@ function renderRules(rules) {
     meta.textContent = r.severity + " · looks back " + r.lookback_s + "s";
 
     card.append(head, desc, pattern, meta);
+    if (unavailable) {
+      const note = document.createElement("p");
+      note.className = "note";
+      note.textContent = missingText(r.missing);
+      card.append(note);
+    }
     box.append(card);
   }
+}
+
+const SIGNAL_WORDS = {
+  kv_usage: "KV cache usage",
+  preemption_rate: "preemption counts",
+  token_rate: "the generated-token counter",
+  progress_rate: "the token counters",
+};
+
+function missingText(missing) {
+  const words = missing.map((m) => SIGNAL_WORDS[m] || m);
+  return "Disabled: this server does not export " + words.join(" or ") + ".";
 }
 
 function describeEvent(e) {
@@ -94,7 +113,7 @@ function renderEvents(events) {
 }
 
 function renderHeader(state) {
-  $("mode").textContent = state.mode;
+  $("mode").textContent = state.server ? state.mode + " · " + state.server : state.mode;
   const firing = state.rules.filter((r) => r.state === "firing");
   if (state.scrape_error) setStatus("metrics unreachable", "crit");
   else if (!state.latest) setStatus("waiting for data", "wait");

@@ -45,6 +45,7 @@ svg.ng .muted{fill:var(--muted)}
 svg.ng .panel{fill:var(--panel);stroke:var(--grid);stroke-width:1}
 svg.ng .line{fill:none;stroke:var(--line);stroke-width:1.6;stroke-linejoin:round}
 svg.ng .area{fill:var(--area);stroke:none}
+svg.ng .line2{fill:none;stroke:var(--fg);stroke-width:1.4;stroke-dasharray:5 3;opacity:.8}
 svg.ng .thr{fill:none;stroke:var(--warn);stroke-width:1;stroke-dasharray:4 3}
 svg.ng .r-ok{fill:var(--ok)}
 svg.ng .r-unk{fill:url(#ng-unk)}
@@ -115,6 +116,12 @@ struct Strip<'a> {
     /// Largest value actually seen, for the "max" label (the drawn scale has a floor).
     seen_max: f64,
     threshold: Option<f64>,
+    /// A second series drawn as a dashed line on the same scale.
+    overlay: Option<Vec<Option<f64>>>,
+    /// Replaces the generated "now ... max ..." text.
+    now_text: Option<String>,
+    /// A short line under the "now" text.
+    hint: Option<&'a str>,
 }
 
 pub fn timeline_svg(frames: &[Frame], rules: &[Rule], opts: &RenderOptions) -> String {
@@ -123,7 +130,7 @@ pub fn timeline_svg(frames: &[Frame], rules: &[Rule], opts: &RenderOptions) -> S
         _ => frames,
     };
 
-    let strips_h = 3.0 * STRIP_H + 2.0 * STRIP_GAP;
+    let strips_h = 4.0 * STRIP_H + 3.0 * STRIP_GAP;
     let ribbons_top = TOP + strips_h + 34.0;
     let ribbons_h = rules.len() as f64 * RIBBON_SLOT;
     let axis_y = ribbons_top + ribbons_h + 2.0;
@@ -194,23 +201,34 @@ pub fn timeline_svg(frames: &[Frame], rules: &[Rule], opts: &RenderOptions) -> S
     // Signal strips.
     let max_of = |vals: &[Option<f64>]| vals.iter().flatten().cloned().fold(0.0_f64, f64::max);
     let waiting: Vec<Option<f64>> = frames.iter().map(|f| Some(f.waiting)).collect();
+    let running: Vec<Option<f64>> = frames.iter().map(|f| Some(f.running)).collect();
+    let work_max = max_of(&waiting).max(max_of(&running));
+    let work_now = format!(
+        "now {} waiting · {} running",
+        trim(frames[frames.len() - 1].waiting),
+        trim(frames[frames.len() - 1].running)
+    );
     let tokens: Vec<Option<f64>> = frames.iter().map(|f| f.token_rate).collect();
+    let prompts: Vec<Option<f64>> = frames.iter().map(|f| f.prompt_rate).collect();
     let kv: Vec<Option<f64>> = frames.iter().map(|f| f.kv_usage).collect();
     let strips = [
         Strip {
-            label: "requests waiting",
+            label: "work in flight",
             unit: "",
             y: TOP,
-            ymax: max_of(&waiting).ceil().max(4.0),
-            seen_max: max_of(&waiting),
+            ymax: work_max.ceil().max(4.0),
+            seen_max: work_max,
             values: waiting,
             step: true,
             area: true,
             percent: false,
             threshold: None,
+            overlay: Some(running),
+            now_text: Some(work_now),
+            hint: Some("fill: waiting, dashed: running"),
         },
         Strip {
-            label: "tokens per second",
+            label: "generated tokens/s",
             unit: "/s",
             y: TOP + STRIP_H + STRIP_GAP,
             ymax: (max_of(&tokens) * 1.1).ceil().max(1.0),
@@ -220,11 +238,29 @@ pub fn timeline_svg(frames: &[Frame], rules: &[Rule], opts: &RenderOptions) -> S
             area: true,
             percent: false,
             threshold: None,
+            overlay: None,
+            now_text: None,
+            hint: None,
+        },
+        Strip {
+            label: "prompt tokens/s",
+            unit: "/s",
+            y: TOP + 2.0 * (STRIP_H + STRIP_GAP),
+            ymax: (max_of(&prompts) * 1.1).ceil().max(1.0),
+            seen_max: max_of(&prompts),
+            values: prompts,
+            step: false,
+            area: true,
+            percent: false,
+            threshold: None,
+            overlay: None,
+            now_text: None,
+            hint: None,
         },
         Strip {
             label: "KV cache used",
             unit: "",
-            y: TOP + 2.0 * (STRIP_H + STRIP_GAP),
+            y: TOP + 3.0 * (STRIP_H + STRIP_GAP),
             ymax: 1.0,
             seen_max: max_of(&kv),
             values: kv,
@@ -232,6 +268,9 @@ pub fn timeline_svg(frames: &[Frame], rules: &[Rule], opts: &RenderOptions) -> S
             area: false,
             percent: true,
             threshold: opts.kv_threshold,
+            overlay: None,
+            now_text: None,
+            hint: None,
         },
     ];
 
@@ -304,15 +343,38 @@ pub fn timeline_svg(frames: &[Frame], rules: &[Rule], opts: &RenderOptions) -> S
         }
         flush(&mut run, &mut o);
 
+        if let Some(overlay) = &s.overlay {
+            let mut d = String::new();
+            for (i, v) in overlay.iter().enumerate() {
+                if let Some(v) = v {
+                    let end = if i + 1 < xs.len() { xs[i + 1] } else { right };
+                    let y = n(yv(*v));
+                    let _ = write!(
+                        d,
+                        "{}{} {} L{} {} ",
+                        if d.is_empty() { "M" } else { "L" },
+                        n(xs[i]),
+                        y,
+                        n(end),
+                        y
+                    );
+                }
+            }
+            if !d.is_empty() {
+                let _ = writeln!(o, r#"<path class="line2" d="{}"/>"#, d.trim_end());
+            }
+        }
+
         let max_label = if s.percent {
             format!("{:.0}%", s.seen_max * 100.0)
         } else {
             format!("{}{}", trim(s.seen_max.round()), s.unit)
         };
-        let now = match s.values.last().copied().flatten() {
-            Some(v) if s.percent => format!("now {:.0}% · max {max_label}", v * 100.0),
-            Some(v) => format!("now {}{} · max {max_label}", trim(v), s.unit),
-            None => "no data".to_string(),
+        let now = match (&s.now_text, s.values.last().copied().flatten()) {
+            (Some(text), _) => text.clone(),
+            (None, Some(v)) if s.percent => format!("now {:.0}% · max {max_label}", v * 100.0),
+            (None, Some(v)) => format!("now {}{} · max {max_label}", trim(v), s.unit),
+            (None, None) => "no data".to_string(),
         };
         let _ = writeln!(
             o,
@@ -323,6 +385,15 @@ pub fn timeline_svg(frames: &[Frame], rules: &[Rule], opts: &RenderOptions) -> S
             y2 = n(s.y + 33.0),
             l = esc(s.label)
         );
+        if let Some(hint) = s.hint {
+            let _ = writeln!(
+                o,
+                r#"<text class="muted" text-anchor="end" x="{x}" y="{y}">{h}</text>"#,
+                x = n(LEFT - 12.0),
+                y = n(s.y + 47.0),
+                h = esc(hint)
+            );
+        }
     }
 
     // Rule ribbons.
@@ -569,6 +640,12 @@ mod tests {
         };
         let svg = timeline_svg(&frames, &rules, &opts);
         assert!(svg.contains("now 0/s · max 0/s"));
+        assert!(svg.contains("prompt tokens/s"));
+        assert!(svg.contains("work in flight"));
+        assert!(
+            svg.contains("class=\"line2\""),
+            "running requests should be drawn"
+        );
     }
 
     #[test]

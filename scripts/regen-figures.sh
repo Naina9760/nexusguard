@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 out=docs/assets
 bin="cargo run --quiet --release --"
 
-for scenario in stall thrash attached-stalled; do
+for scenario in stall thrash attached-stalled hang-running-only long-prefill; do
   $bin simulate "$scenario" --count 90 | $bin render - --out "$out/timeline-$scenario.svg"
   echo "wrote $out/timeline-$scenario.svg"
 done

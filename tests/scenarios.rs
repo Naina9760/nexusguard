@@ -1,5 +1,6 @@
 //! End-to-end behaviour of the built-in rules over synthetic traces.
 
+use nexusguard::formula::{Cmp, Formula, Signal};
 use nexusguard::monitor::{Event, Monitor};
 use nexusguard::rules::{builtin_rules, RuleConfig};
 use nexusguard::sample::Sample;
@@ -126,4 +127,76 @@ fn a_server_restart_in_the_middle_of_a_stall_does_not_hide_it() {
     }
     let events = run(samples);
     assert_eq!(violation_times(&events, "engine_stalled").len(), 1);
+}
+
+#[test]
+fn an_idle_server_is_not_a_stall() {
+    let events = run(generate(Scenario::Idle, 300, 2.0));
+    assert_eq!(events, vec![]);
+}
+
+#[test]
+fn a_long_prefill_is_slow_not_stuck() {
+    // Ten minutes with no output tokens, but prompt tokens keep being read.
+    let events = run(generate(Scenario::LongPrefill, 300, 2.0));
+    assert_eq!(
+        violation_times(&events, "engine_stalled"),
+        Vec::<f64>::new()
+    );
+}
+
+#[test]
+fn a_hang_with_one_running_request_and_an_empty_queue_is_caught() {
+    // The "Running: 1 reqs, Waiting: 0 reqs, KV 9.6%, 0 tokens/s" report.
+    let samples = generate(Scenario::HangRunningOnly, 60, 2.0);
+    let events = run(samples.clone());
+    assert_eq!(violation_times(&events, "engine_stalled"), vec![70.0]);
+
+    // The first version of the rule needed a non-empty queue and never fired here.
+    let old_rule = Formula::pred(Signal::Waiting, Cmp::Gt, 0.0)
+        .and(Formula::pred(Signal::TokenRate, Cmp::Eq, 0.0))
+        .historically(30.0);
+    let mut m = nexusguard::monitor::Monitor::new(vec![nexusguard::rules::Rule {
+        name: "old".into(),
+        severity: nexusguard::rules::Severity::Critical,
+        description: String::new(),
+        pattern: old_rule,
+    }]);
+    let mut fired = false;
+    for s in samples {
+        fired |= !m.ingest(s).unwrap().is_empty();
+    }
+    assert!(!fired, "the old rule should have missed this hang");
+}
+
+#[test]
+fn a_saturated_hang_is_a_stall_and_not_thrashing() {
+    // The "Running: 64 reqs, Waiting: 34 reqs, KV 96.8%, 0 tokens/s" report.
+    let events = run(generate(Scenario::HangSaturated, 60, 2.0));
+    assert_eq!(violation_times(&events, "engine_stalled"), vec![70.0]);
+    assert_eq!(violation_times(&events, "kv_thrash"), Vec::<f64>::new());
+}
+
+#[test]
+fn a_scrape_outage_inside_the_window_delays_the_alarm_instead_of_faking_it() {
+    // Stall begins at t=40s. The metrics endpoint then goes silent from t=44s to
+    // t=80s and comes back still stalled.
+    let mut samples = generate(Scenario::Stall, 80, 2.0);
+    samples.drain(22..41);
+
+    let unlimited = run(samples.clone());
+    assert_eq!(violation_times(&unlimited, "engine_stalled"), vec![82.0]);
+
+    let mut guarded = Monitor::new(builtin_rules(&RuleConfig::default())).with_max_gap(6.0);
+    let mut events = Vec::new();
+    for s in samples {
+        events.extend(guarded.ingest(s).unwrap());
+    }
+    let fired = violation_times(&events, "engine_stalled");
+    assert_eq!(fired.len(), 1);
+    assert!(
+        fired[0] >= 112.0,
+        "alarm at {} rests on evidence that spans the outage",
+        fired[0]
+    );
 }

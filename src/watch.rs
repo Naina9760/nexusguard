@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use crate::monitor::Event;
-use crate::prom::{parse_sample, MetricNames};
+use crate::prom::{parse_page, ServerChoice};
 use crate::sample::Sample;
 use crate::sink::fetch;
 
@@ -14,17 +14,23 @@ pub struct WatchConfig {
     pub max_scrapes: Option<u64>,
     /// Consecutive failed scrapes before a `scrape_failing` event.
     pub max_scrape_failures: u32,
-    pub names: &'static MetricNames,
+    pub server: ServerChoice,
 }
 
-/// Scrapes on an interval. Every good sample goes to `ingest`, which returns the
-/// rule events it caused; every event, including scrape failures, goes to `on_event`.
-pub fn run(
-    cfg: &WatchConfig,
-    mut ingest: impl FnMut(Sample) -> Vec<Event>,
-    mut on_event: impl FnMut(&Event),
-    mut on_scrape_error: impl FnMut(Option<&str>),
-) {
+/// What the loop reports back to its caller.
+pub trait Hooks {
+    /// A good sample arrived. Returns the rule events it caused.
+    fn sample(&mut self, sample: Sample) -> Vec<Event>;
+    /// An event worth recording (rule transitions and scrape health).
+    fn event(&mut self, event: &Event);
+    /// Which server profile read the last good page.
+    fn server(&mut self, _name: &'static str) {}
+    /// `Some(error)` after a failed scrape, `None` after a good one.
+    fn scrape_error(&mut self, _error: Option<&str>) {}
+}
+
+/// Scrapes on an interval until `max_scrapes` is reached, or forever.
+pub fn run(cfg: &WatchConfig, hooks: &mut impl Hooks) {
     let timeout = cfg
         .interval
         .clamp(Duration::from_secs(1), Duration::from_secs(10));
@@ -36,26 +42,27 @@ pub fn run(
         let t = start.elapsed().as_secs_f64();
 
         let result = fetch(&cfg.url, timeout)
-            .and_then(|body| parse_sample(&body, t, cfg.names).map_err(|e| e.to_string()));
+            .and_then(|body| parse_page(&body, t, cfg.server).map_err(|e| e.to_string()));
 
         match result {
-            Ok(sample) => {
+            Ok((sample, profile)) => {
                 if failing_reported {
-                    on_event(&Event::ScrapeRecovered { t });
+                    hooks.event(&Event::ScrapeRecovered { t });
                     failing_reported = false;
                 }
                 failures = 0;
-                on_scrape_error(None);
-                for e in ingest(sample) {
-                    on_event(&e);
+                hooks.scrape_error(None);
+                hooks.server(profile.name);
+                for e in hooks.sample(sample) {
+                    hooks.event(&e);
                 }
             }
             Err(error) => {
                 failures += 1;
                 eprintln!("nexusguard: scrape failed ({failures} in a row): {error}");
-                on_scrape_error(Some(&error));
+                hooks.scrape_error(Some(&error));
                 if failures >= cfg.max_scrape_failures && !failing_reported {
-                    on_event(&Event::ScrapeFailing {
+                    hooks.event(&Event::ScrapeFailing {
                         t,
                         consecutive: failures,
                         error,

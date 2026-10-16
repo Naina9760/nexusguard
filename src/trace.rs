@@ -55,8 +55,8 @@ impl Trace {
             return Err(TraceError::NonFinite);
         }
 
-        let (token_rate, preemption_rate) = match self.observations.back() {
-            None => (None, None),
+        let (token_rate, prompt_rate, preemption_rate) = match self.observations.back() {
+            None => (None, None, None),
             Some(prev) => {
                 let last = prev.sample.t;
                 if sample.t <= last {
@@ -72,17 +72,22 @@ impl Trace {
                         sample.generation_tokens_total,
                     ) / dt,
                 );
+                let prompt = match (prev.sample.prompt_tokens_total, sample.prompt_tokens_total) {
+                    (Some(a), Some(b)) => Some(counter_increase(a, b) / dt),
+                    _ => None,
+                };
                 let preempt = match (prev.sample.preemptions_total, sample.preemptions_total) {
                     (Some(a), Some(b)) => Some(counter_increase(a, b) / dt),
                     _ => None,
                 };
-                (tokens, preempt)
+                (tokens, prompt, preempt)
             }
         };
 
         self.observations.push_back(Observation {
             sample,
             token_rate,
+            prompt_rate,
             preemption_rate,
         });
         self.prune();
@@ -123,6 +128,7 @@ mod tests {
             running: 1.0,
             waiting: 0.0,
             generation_tokens_total: tokens,
+            prompt_tokens_total: None,
             kv_usage: None,
             preemptions_total: None,
         }

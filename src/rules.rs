@@ -22,7 +22,8 @@ pub struct Rule {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuleConfig {
-    /// Seconds with a non-empty queue and zero token output before `engine_stalled` fires.
+    /// Seconds with work in flight (running or queued requests) and no tokens generated or read
+    /// before `engine_stalled` fires.
     pub stall_secs: f64,
     /// Seconds of high KV usage (with at least one preemption) before `kv_thrash` fires.
     pub thrash_secs: f64,
@@ -74,10 +75,16 @@ impl RuleConfig {
 
 /// The three built-in rules. Call [`RuleConfig::validate`] first.
 pub fn builtin_rules(cfg: &RuleConfig) -> Vec<Rule> {
-    let waiting = Formula::pred(Signal::Waiting, Cmp::Gt, 0.0);
-    let no_tokens = Formula::pred(Signal::TokenRate, Cmp::Eq, 0.0);
+    // Work is in flight if anything is running or queued. Progress is any token
+    // generated or any prompt token read, so a long prefill is not a stall.
+    let has_work = Formula::pred(Signal::Waiting, Cmp::Gt, 0.0).or(Formula::pred(
+        Signal::Running,
+        Cmp::Gt,
+        0.0,
+    ));
+    let no_progress = Formula::pred(Signal::ProgressRate, Cmp::Eq, 0.0);
 
-    let stalled = waiting.and(no_tokens).historically(cfg.stall_secs);
+    let stalled = has_work.and(no_progress).historically(cfg.stall_secs);
 
     let kv_high =
         Formula::pred(Signal::KvUsage, Cmp::Ge, cfg.kv_threshold).historically(cfg.thrash_secs);
@@ -92,7 +99,7 @@ pub fn builtin_rules(cfg: &RuleConfig) -> Vec<Rule> {
             name: "engine_stalled".into(),
             severity: Severity::Critical,
             description: format!(
-                "Requests are queued but no tokens were generated for {}s. The engine may be hung or deadlocked.",
+                "Requests are running or queued but no tokens were generated or read for {}s. The engine may be hung or deadlocked.",
                 cfg.stall_secs
             ),
             pattern: stalled,

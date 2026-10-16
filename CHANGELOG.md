@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0
+
+Checked against what vLLM and SGLang export and what people reported when they hung.
+
+### Changed
+- `engine_stalled` now counts a running request as work and any generated or prompt token as progress. The old rule needed a non-empty queue, and vLLM issue #18431 includes a hang with `Running: 1, Waiting: 0`, which it would have missed. It also treated a long prompt being read as a stall; prompt tokens now count as progress.
+- Windows with a hole in them (the metrics endpoint went quiet) are no longer treated as covered. After an outage a rule waits for fresh samples before it can fire.
+- The timeline now shows running requests, prompt tokens per second and KV use, so a figure explains why a rule fired.
+
+### Added
+- SGLang support, with the server detected from the metric prefix (`--server auto|vllm|sglang`).
+- Rules that need a metric the server does not export are marked unavailable, and the web page says which metric is missing.
+- Scenarios `idle`, `long-prefill`, `hang-running-only` and `hang-saturated`, the last two following log lines from vLLM issue #18431.
+- `docs/VALIDATION.md`, recording where each metric name and rule comes from and what is still unverified.
+- Tests: regression for the missed hang, false-alarm guards, outage handling, verbatim documentation lines, and two property tests for gap handling.
+
 ## 0.2.0
 
 A rewrite around what an inference server exposes.

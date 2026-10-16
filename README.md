@@ -1,14 +1,14 @@
 # NexusGuard
 
-NexusGuard watches an LLM inference server's metrics and tells you when the engine has stalled, the KV cache is thrashing, or the queue has stopped draining. It is a single Rust binary with a small web page for looking at what happened.
+NexusGuard watches an LLM inference server's metrics (vLLM or SGLang) and tells you when the engine has stalled, the KV cache is thrashing, or the queue has stopped draining. It is a single Rust binary with a small web page for looking at what happened.
 
 ![NexusGuard web UI in demo mode, showing a stall being detected](docs/assets/ui-demo.png)
 
-Version 0.2, early. It has been tested on synthetic traces and a fake metrics server. It has not been run against a live vLLM or SGLang server yet, so the metric names and default thresholds are unproven (see [Limits](#limits)).
+Version 0.3, early. It has been tested on synthetic traces, on traces shaped after hangs reported in vLLM's issue tracker, and on fake metrics servers. It has not been run against a live vLLM or SGLang server yet. [docs/VALIDATION.md](docs/VALIDATION.md) lists what each metric name and rule rests on.
 
 ## Why
 
-An inference server can stop producing tokens without logging an error, and its `/metrics` endpoint keeps answering, so an "is it up" probe passes. What gives it away is a pattern over time: requests are waiting and the token counter has not moved for half a minute. NexusGuard checks for patterns like that.
+An inference server can stop producing tokens without logging an error. vLLM's `/health` has been reported to return 200 while the engine was frozen, and the `/metrics` endpoint keeps answering, so an "is it up" probe passes. What gives it away is a pattern over time: requests are running or waiting, and no token has been generated or read for half a minute. NexusGuard checks for patterns like that.
 
 ## Try it without a GPU
 
@@ -17,53 +17,67 @@ cargo build --release
 ./target/release/nexusguard serve --demo stall
 ```
 
-Open http://127.0.0.1:9100. The demo plays a synthetic server that stops producing tokens 40 seconds in (simulated time, replayed at two samples per second). `engine_stalled` fires at 70 s and `queue_backlog` at 94 s.
+Open http://127.0.0.1:9100. The demo plays a synthetic server that stops making progress 40 seconds in (simulated time, replayed at two samples per second). `engine_stalled` fires at 70 s and `queue_backlog` at 94 s. Other demos: `healthy`, `thrash`, `attached-stalled`, `idle`, `long-prefill`, `hang-running-only`, `hang-saturated`.
 
-To point it at a real server instead:
+To watch a real server:
 
 ```bash
 ./target/release/nexusguard serve --url http://localhost:8000/metrics
 ```
 
-Without the web page, `watch` does the same job and prints one JSON line per event:
-
-```bash
-./target/release/nexusguard watch --url http://localhost:8000/metrics
-```
+The metric names are detected from the page (`vllm:` or `sglang:`). Force one with `--server vllm` or `--server sglang`. SGLang must be started with `--enable-metrics`. Without the web page, `watch` does the same job and prints one JSON line per event.
 
 ## Reading the timeline
 
-The top three strips are what the server did: queue length, tokens per second, KV cache use. Each row underneath is one rule, coloured by what the rule concluded at that moment. The bracket under a row shows how far back the rule looks.
+The top four strips are what the server did: requests waiting (filled) and running (dashed), tokens generated per second, prompt tokens read per second, and KV cache use. Each row underneath is one rule, coloured by what the rule concluded at that moment. The bracket under a row shows how far back the rule looks.
 
-![Timeline of a stall: tokens stop at 40 s, engine_stalled fires at 70 s, queue_backlog at 94 s](docs/assets/timeline-stall.svg)
+![Timeline of a stall: output stops at 40 s, engine_stalled fires at 70 s, queue_backlog at 94 s](docs/assets/timeline-stall.svg)
 
 A rule needs a full window of history before it can say a pattern holds. If you start watching a server that is already stalled, the rule shows hatched ("not enough data yet") until the window fills, then turns red:
 
 ![Timeline when attaching to a server that is already stalled: hatched for 30 s, then the alarm](docs/assets/timeline-attached-stalled.svg)
 
-The rule's verdict has three values, and the picture below shows why. One sample that breaks the pattern settles the question straight away. A window that reaches back before monitoring started cannot be confirmed.
+A rule has three possible verdicts, and the picture below shows why. One sample that breaks the pattern settles the question straight away. A window that reaches back before monitoring started, or that has a hole in it, cannot be confirmed.
 
 ![Three examples of a rule reaching unknown, true and false](docs/assets/window-anatomy.svg)
 
 Every figure here is drawn by the same code that decides the alerts. `scripts/regen-figures.sh` redraws them, and CI fails if they are out of date.
 
+## Stuck is not the same as slow, or idle
+
+Two shapes that look like trouble but are not:
+
+A long prompt can keep a server busy for minutes with no output, because it is still reading. Prompt tokens count as progress, so `long-prefill` raises nothing.
+
+![Timeline of one long prompt: no generated tokens, but prompt tokens keep flowing, and no alarm](docs/assets/timeline-long-prefill.svg)
+
+An idle server has nothing running and nothing queued, and no tokens either. `idle` raises nothing.
+
+And one shape that is trouble, which an earlier version of the rule missed. People reported vLLM hangs with log lines like `Running: 1 reqs, Waiting: 0 reqs, KV cache usage: 9.6%` and 0.0 tokens/s ([issue #18431](https://github.com/vllm-project/vllm/issues/18431)). The queue is empty, so a rule that waits for a queue misses it. NexusGuard counts a running request as work:
+
+![Timeline of a hang with one running request and an empty queue: the alarm fires at 70 s](docs/assets/timeline-hang-running-only.svg)
+
 ## What it checks
 
 | Rule | Severity | Fires when |
 |---|---|---|
-| `engine_stalled` | critical | for 30 s, requests were waiting and zero tokens were generated |
+| `engine_stalled` | critical | for 30 s, something was running or waiting, and no token was generated or read |
 | `kv_thrash` | warning | for 20 s, KV cache use stayed at 90% or more, and at least one preemption happened in that time |
 | `queue_backlog` | warning | for 60 s, at least one request was always waiting |
 
-Every number is a flag (`--stall-secs`, `--thrash-secs`, `--kv-threshold`, `--backlog-secs`, `--backlog-min`). `nexusguard rules` prints the active rules.
+Every number is a flag (`--stall-secs`, `--thrash-secs`, `--kv-threshold`, `--backlog-secs`, `--backlog-min`). `nexusguard rules` prints the active rules and the signals each one needs.
 
 Each rule fires once when its pattern starts to hold and sends a `recovered` event when it stops. It does not repeat on every scrape. `watch` and `serve` also report `scrape_failing` when the metrics endpoint cannot be read three times in a row.
+
+If a server does not export a metric a rule needs, that rule is disabled and the web page says why. SGLang has no preemption counter, so `kv_thrash` is off for it.
+
+If the metrics endpoint goes quiet for a while, a rule will not treat the silent stretch as evidence. After an outage, a rule waits until its window is filled with fresh samples before it can fire.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `serve` | `watch` plus a local web page. `--demo healthy\|stall\|thrash\|attached-stalled` plays synthetic data. |
+| `serve` | `watch` plus a local web page. `--demo SCENARIO` plays synthetic data. |
 | `watch` | Scrape on an interval and print an event when a rule starts or stops firing. |
 | `replay FILE` | Run a recorded trace (JSON lines) through the rules. Exits 2 if a rule fired, so it works as a CI check. |
 | `render FILE` | Draw a trace as the timeline SVG. |
@@ -80,12 +94,13 @@ Each scrape becomes a sample. The trace keeps a bounded history and works out pe
 
 ## Limits
 
-- It has not been run against a live vLLM or SGLang server. The metric names (`vllm:num_requests_running`, `vllm:num_requests_waiting`, `vllm:kv_cache_usage_perc`, `vllm:generation_tokens_total`, `vllm:num_preemptions_total`) come from vLLM's documentation. Older versions used other names, and the parser tries the known alternatives.
-- It sees aggregate numbers only: queue length and token counts. It cannot say which request is stuck, or catch one request starving while others make progress.
-- `engine_stalled` needs `waiting > 0`. If clients hang while the server reports an empty queue, nothing matches.
+- It has not been run against a live vLLM or SGLang server. The metric names come from the servers' documentation and source ([docs/VALIDATION.md](docs/VALIDATION.md)). Names change between versions, and the parser tries the known alternatives.
+- It sees aggregate numbers only: queue length, running count, token counters. It cannot say which request is stuck, or catch one request starving while others make progress.
+- A stall is "work in flight and no tokens". If clients hang while the server reports nothing running and nothing queued, nothing matches.
 - It reports and does nothing else. Use `--exec` to hook an alert up to your own action.
-- The default thresholds are guesses. A batch job with very long prompts can go quiet for a while without being broken.
-- If scrapes are far apart compared with a rule's window, the window holds too few points to mean much.
+- The default thresholds are guesses and have not been tuned on real traffic.
+- If scrapes are far apart compared with a rule's window, the window holds too few points to mean much. `watch` warns when the interval is more than a third of the shortest window.
+- Text Generation Inference is not supported, because it only counts generated tokens when a request finishes ([why](docs/VALIDATION.md#not-supported)).
 - It is runtime monitoring, not a proof about the server. The rule logic itself is checked with property-based tests.
 
 ## Development

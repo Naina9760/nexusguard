@@ -8,9 +8,16 @@
 //!
 //! Verdicts are three-valued (Kleene logic). `Unknown` means the data needed is
 //! missing: a signal the server does not export, a rate that needs two scrapes,
-//! or a window that reaches back before the first scrape. A definite
-//! counter-example is still definite even if the window is not yet full:
-//! `Historically[30s] p` is `False` as soon as one observation violates `p`.
+//! a window that reaches back before the first scrape, or a window with a hole
+//! in it (see `max_gap` below). A definite counter-example is still definite
+//! even if the window is not yet full: `Historically[30s] p` is `False` as soon
+//! as one observation violates `p`.
+//!
+//! `max_gap` is the longest silence between two observations that still counts
+//! as continuous coverage. If the scrapes inside a window are further apart
+//! than that, for example because the metrics endpoint stopped answering, the
+//! window is not treated as covered and a rule that would otherwise be `True`
+//! (or `False` for `Once`) becomes `Unknown`.
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -61,6 +68,8 @@ pub enum Signal {
     KvUsage,
     /// Generated tokens per second since the previous scrape.
     TokenRate,
+    /// Generated plus prompt tokens per second: any forward progress.
+    ProgressRate,
     /// Preemptions per second since the previous scrape.
     PreemptionRate,
 }
@@ -72,16 +81,18 @@ impl Signal {
             Signal::Waiting => Some(o.sample.waiting),
             Signal::KvUsage => o.sample.kv_usage,
             Signal::TokenRate => o.token_rate,
+            Signal::ProgressRate => o.progress_rate(),
             Signal::PreemptionRate => o.preemption_rate,
         }
     }
 
-    fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             Signal::Running => "running",
             Signal::Waiting => "waiting",
             Signal::KvUsage => "kv_usage",
             Signal::TokenRate => "token_rate",
+            Signal::ProgressRate => "progress_rate",
             Signal::PreemptionRate => "preemption_rate",
         }
     }
@@ -136,6 +147,26 @@ fn window(secs: f64) -> f64 {
     }
 }
 
+/// The oldest observation inside the window that starts at `start` and ends at
+/// observation `i`, and whether the window is covered: data reaches back to the
+/// start, and no two neighbouring observations in it (including the one just
+/// before it) are further apart than `max_gap`.
+fn window_coverage(
+    obs: &VecDeque<Observation>,
+    i: usize,
+    start: f64,
+    max_gap: f64,
+) -> (usize, bool) {
+    let mut first = i;
+    while first > 0 && obs[first - 1].sample.t >= start {
+        first -= 1;
+    }
+    let reaches_back = obs[0].sample.t <= start;
+    let from = first.saturating_sub(1);
+    let dense = (from..i).all(|k| obs[k + 1].sample.t - obs[k].sample.t <= max_gap);
+    (first, reaches_back && dense)
+}
+
 impl Formula {
     pub fn pred(signal: Signal, cmp: Cmp, value: f64) -> Formula {
         Formula::Pred(signal, cmp, value)
@@ -174,34 +205,59 @@ impl Formula {
         }
     }
 
-    /// Evaluates the formula at the latest observation. An empty trace is `Unknown`.
+    /// Every signal the formula reads, without duplicates, in first-use order.
+    pub fn signals(&self) -> Vec<Signal> {
+        fn walk(f: &Formula, out: &mut Vec<Signal>) {
+            match f {
+                Formula::Pred(s, ..) => {
+                    if !out.contains(s) {
+                        out.push(*s);
+                    }
+                }
+                Formula::Not(f) | Formula::Historically(_, f) | Formula::Once(_, f) => walk(f, out),
+                Formula::And(a, b) | Formula::Or(a, b) => {
+                    walk(a, out);
+                    walk(b, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(self, &mut out);
+        out
+    }
+
+    /// Evaluates at the latest observation with no limit on gaps between
+    /// observations. An empty trace is `Unknown`.
     pub fn eval(&self, obs: &VecDeque<Observation>) -> Verdict {
+        self.eval_with_gap(obs, f64::INFINITY)
+    }
+
+    /// Evaluates at the latest observation. Observations further apart than
+    /// `max_gap` seconds do not count as continuous coverage.
+    pub fn eval_with_gap(&self, obs: &VecDeque<Observation>, max_gap: f64) -> Verdict {
         match obs.len() {
             0 => Verdict::Unknown,
-            n => self.eval_at(obs, n - 1),
+            n => self.eval_at(obs, n - 1, max_gap),
         }
     }
 
     /// Evaluates the formula at observation `i`, looking only at `0..=i`.
-    pub fn eval_at(&self, obs: &VecDeque<Observation>, i: usize) -> Verdict {
+    pub fn eval_at(&self, obs: &VecDeque<Observation>, i: usize, max_gap: f64) -> Verdict {
         match self {
             Formula::Pred(signal, cmp, value) => match signal.get(&obs[i]) {
                 Some(v) if cmp.holds(v, *value) => Verdict::True,
                 Some(_) => Verdict::False,
                 None => Verdict::Unknown,
             },
-            Formula::Not(f) => f.eval_at(obs, i).not(),
-            Formula::And(a, b) => a.eval_at(obs, i).and(b.eval_at(obs, i)),
-            Formula::Or(a, b) => a.eval_at(obs, i).or(b.eval_at(obs, i)),
+            Formula::Not(f) => f.eval_at(obs, i, max_gap).not(),
+            Formula::And(a, b) => a.eval_at(obs, i, max_gap).and(b.eval_at(obs, i, max_gap)),
+            Formula::Or(a, b) => a.eval_at(obs, i, max_gap).or(b.eval_at(obs, i, max_gap)),
             Formula::Historically(w, f) => {
                 let start = obs[i].sample.t - w;
-                let covered = obs[0].sample.t <= start;
+                let (first, covered) = window_coverage(obs, i, start, max_gap);
                 let mut acc = Verdict::True;
-                for j in (0..=i).rev() {
-                    if obs[j].sample.t < start {
-                        break;
-                    }
-                    acc = acc.and(f.eval_at(obs, j));
+                for j in (first..=i).rev() {
+                    acc = acc.and(f.eval_at(obs, j, max_gap));
                     if acc == Verdict::False {
                         return Verdict::False;
                     }
@@ -214,13 +270,10 @@ impl Formula {
             }
             Formula::Once(w, f) => {
                 let start = obs[i].sample.t - w;
-                let covered = obs[0].sample.t <= start;
+                let (first, covered) = window_coverage(obs, i, start, max_gap);
                 let mut acc = Verdict::False;
-                for j in (0..=i).rev() {
-                    if obs[j].sample.t < start {
-                        break;
-                    }
-                    acc = acc.or(f.eval_at(obs, j));
+                for j in (first..=i).rev() {
+                    acc = acc.or(f.eval_at(obs, j, max_gap));
                     if acc == Verdict::True {
                         return Verdict::True;
                     }
@@ -263,6 +316,7 @@ mod tests {
                 running: 1.0,
                 waiting,
                 generation_tokens_total: tokens,
+                prompt_tokens_total: None,
                 kv_usage: None,
                 preemptions_total: None,
             })
@@ -370,5 +424,75 @@ mod tests {
             f.to_string(),
             "always[30s] ((waiting > 0) and (token_rate == 0))"
         );
+    }
+
+    #[test]
+    fn a_hole_in_the_window_makes_the_verdict_unknown() {
+        // Scrapes every 2s, then a 30s silence, then two more.
+        let tr = trace_of(&[
+            (0.0, 1.0, 0.0),
+            (2.0, 1.0, 0.0),
+            (4.0, 1.0, 0.0),
+            (34.0, 1.0, 0.0),
+            (36.0, 1.0, 0.0),
+        ]);
+        let f = waiting_pos().historically(30.0);
+        assert_eq!(
+            f.eval_with_gap(tr.observations(), f64::INFINITY),
+            Verdict::True
+        );
+        assert_eq!(f.eval_with_gap(tr.observations(), 6.0), Verdict::Unknown);
+    }
+
+    #[test]
+    fn a_hole_never_hides_a_counterexample() {
+        let tr = trace_of(&[
+            (0.0, 1.0, 0.0),
+            (2.0, 0.0, 0.0),
+            (34.0, 1.0, 0.0),
+            (36.0, 1.0, 0.0),
+        ]);
+        let f = waiting_pos().historically(40.0);
+        assert_eq!(f.eval_with_gap(tr.observations(), 6.0), Verdict::False);
+    }
+
+    #[test]
+    fn steady_scrapes_within_the_gap_are_still_covered() {
+        let pts: Vec<_> = (0..20).map(|i| (i as f64 * 2.0, 1.0, 0.0)).collect();
+        let tr = trace_of(&pts);
+        let f = waiting_pos().historically(20.0);
+        assert_eq!(f.eval_with_gap(tr.observations(), 6.0), Verdict::True);
+    }
+
+    #[test]
+    fn progress_rate_counts_prompt_tokens() {
+        let mut tr = Trace::new(100.0);
+        for (t, gen, prompt) in [(0.0, 0.0, 0.0), (2.0, 0.0, 400.0), (4.0, 0.0, 800.0)] {
+            tr.push(Sample {
+                t,
+                running: 1.0,
+                waiting: 0.0,
+                generation_tokens_total: gen,
+                prompt_tokens_total: Some(prompt),
+                kv_usage: None,
+                preemptions_total: None,
+            })
+            .unwrap();
+        }
+        let none_generated = Formula::pred(Signal::TokenRate, Cmp::Eq, 0.0);
+        let no_progress = Formula::pred(Signal::ProgressRate, Cmp::Eq, 0.0);
+        assert_eq!(none_generated.eval(tr.observations()), Verdict::True);
+        assert_eq!(no_progress.eval(tr.observations()), Verdict::False);
+    }
+
+    #[test]
+    fn signals_lists_each_signal_once() {
+        let f = waiting_pos()
+            .or(Formula::pred(Signal::Running, Cmp::Gt, 0.0))
+            .and(Formula::pred(Signal::ProgressRate, Cmp::Eq, 0.0))
+            .and(waiting_pos())
+            .historically(30.0);
+        let names: Vec<_> = f.signals().iter().map(|s| s.name()).collect();
+        assert_eq!(names, ["waiting", "running", "progress_rate"]);
     }
 }
