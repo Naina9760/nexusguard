@@ -1,0 +1,13 @@
+[package]
+name = "nexusguard"
+version = "0.1.0"
+edition = "2021"
+authors = ["Naina Rathore <your.email@example.com>"]
+description = "A high-performance runtime formal verification and active-defense engine for distributed AI inference infrastructure."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/nexusguard"
+readme = "README.md"
+
+[dependencies]
+crossbeam-queue = "0.3"
+arc-swap = "1.6"
