@@ -1,0 +1,24 @@
+name: Bug
+description: Something behaves differently from what the README or docs say.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: A command line, and a trace file if one is involved (nexusguard simulate can produce one).
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Output of nexusguard --version, and your OS
+    validations:
+      required: true

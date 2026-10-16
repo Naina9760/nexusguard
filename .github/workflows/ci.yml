@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test
+
+      - name: Replay smoke test (stall must be detected, healthy must not)
+        run: |
+          cargo build --release
+          ./target/release/nexusguard simulate healthy --count 200 | ./target/release/nexusguard replay -
+          set +e
+          ./target/release/nexusguard simulate stall | ./target/release/nexusguard replay -
+          test $? -eq 2
+
+      - name: Figures are up to date
+        run: |
+          ./scripts/regen-figures.sh
+          git diff --exit-code -- docs/assets

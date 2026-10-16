@@ -1,0 +1,88 @@
+<svg class="ng" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440.0" width="1000" height="440.0" role="img" aria-labelledby="ng-t ng-d">
+<title id="ng-t">NexusGuard verdict timeline</title>
+<desc id="ng-d">Queue length, token output and KV cache usage over time, with one ribbon per rule showing whether its pattern held, did not hold, or lacked data.</desc>
+<style>
+svg.ng{--bg:#ffffff;--fg:#1f2328;--muted:#59636e;--grid:#d1d9e0;--panel:#f6f8fa;--line:#0969da;--area:#0969da33;
+--ok:#cdeee3;--unk:#8c959f;--crit:#cf222e;--warn:#bf8700}
+@media (prefers-color-scheme:dark){svg.ng{--bg:#0d1117;--fg:#e6edf3;--muted:#9198a1;--grid:#30363d;--panel:#151b23;--line:#58a6ff;--area:#58a6ff33;
+--ok:#173a33;--unk:#6e7681;--crit:#ff7b72;--warn:#d29922}}
+svg.ng .bg{fill:var(--bg)}
+svg.ng text{font:11px ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:var(--fg)}
+svg.ng .label{font-size:12px;font-weight:600}
+svg.ng .muted{fill:var(--muted)}
+svg.ng .panel{fill:var(--panel);stroke:var(--grid);stroke-width:1}
+svg.ng .line{fill:none;stroke:var(--line);stroke-width:1.6;stroke-linejoin:round}
+svg.ng .area{fill:var(--area);stroke:none}
+svg.ng .thr{fill:none;stroke:var(--warn);stroke-width:1;stroke-dasharray:4 3}
+svg.ng .r-ok{fill:var(--ok)}
+svg.ng .r-unk{fill:url(#ng-unk)}
+svg.ng .r-crit{fill:var(--crit)}
+svg.ng .r-warn{fill:var(--warn)}
+svg.ng .unk-bg{fill:var(--panel)}
+svg.ng .unk-line{stroke:var(--unk);stroke-width:1.5}
+svg.ng .guide-crit{stroke:var(--crit);stroke-width:1;stroke-dasharray:3 3;fill:none}
+svg.ng .guide-warn{stroke:var(--warn);stroke-width:1;stroke-dasharray:3 3;fill:none}
+svg.ng .mark-crit{fill:var(--crit)}
+svg.ng .mark-warn{fill:var(--warn)}
+svg.ng .mark-rec{fill:var(--bg);stroke:var(--fg);stroke-width:1.4}
+svg.ng .lens{fill:none;stroke:var(--muted);stroke-width:1.2}
+svg.ng .axis{stroke:var(--muted);stroke-width:1}
+svg.ng .tick{stroke:var(--grid);stroke-width:1}
+</style>
+<defs><pattern id="ng-unk" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="unk-bg"/><line x1="0" y1="0" x2="0" y2="6" class="unk-line"/></pattern></defs>
+<rect class="bg" width="1000" height="440.0"/>
+<line class="tick" x1="176.0" y1="22.0" x2="176.0" y2="352.0"/>
+<line class="tick" x1="264.4" y1="22.0" x2="264.4" y2="352.0"/>
+<line class="tick" x1="352.9" y1="22.0" x2="352.9" y2="352.0"/>
+<line class="tick" x1="441.3" y1="22.0" x2="441.3" y2="352.0"/>
+<line class="tick" x1="529.8" y1="22.0" x2="529.8" y2="352.0"/>
+<line class="tick" x1="618.2" y1="22.0" x2="618.2" y2="352.0"/>
+<line class="tick" x1="706.7" y1="22.0" x2="706.7" y2="352.0"/>
+<line class="tick" x1="795.1" y1="22.0" x2="795.1" y2="352.0"/>
+<line class="tick" x1="883.6" y1="22.0" x2="883.6" y2="352.0"/>
+<line class="tick" x1="972.0" y1="22.0" x2="972.0" y2="352.0"/>
+<rect class="panel" x="176.0" y="22.0" width="796.0" height="52.0" rx="3"/>
+<path class="area" d="M176.0 25.0 L184.8 25.0 L184.8 25.0 L193.7 25.0 L193.7 25.0 L202.5 25.0 L202.5 25.0 L211.4 25.0 L211.4 25.0 L220.2 25.0 L220.2 25.0 L229.1 25.0 L229.1 25.0 L237.9 25.0 L237.9 25.0 L246.8 25.0 L246.8 25.0 L255.6 25.0 L255.6 25.0 L264.4 25.0 L264.4 25.0 L273.3 25.0 L273.3 25.0 L282.1 25.0 L282.1 25.0 L291.0 25.0 L291.0 25.0 L299.8 25.0 L299.8 25.0 L308.7 25.0 L308.7 25.0 L317.5 25.0 L317.5 25.0 L326.4 25.0 L326.4 25.0 L335.2 25.0 L335.2 25.0 L344.0 25.0 L344.0 25.0 L352.9 25.0 L352.9 25.0 L361.7 25.0 L361.7 25.0 L370.6 25.0 L370.6 25.0 L379.4 25.0 L379.4 25.0 L388.3 25.0 L388.3 25.0 L397.1 25.0 L397.1 25.0 L406.0 25.0 L406.0 25.0 L414.8 25.0 L414.8 25.0 L423.6 25.0 L423.6 25.0 L432.5 25.0 L432.5 25.0 L441.3 25.0 L441.3 25.0 L450.2 25.0 L450.2 25.0 L459.0 25.0 L459.0 25.0 L467.9 25.0 L467.9 25.0 L476.7 25.0 L476.7 25.0 L485.6 25.0 L485.6 25.0 L494.4 25.0 L494.4 25.0 L503.2 25.0 L503.2 25.0 L512.1 25.0 L512.1 25.0 L520.9 25.0 L520.9 25.0 L529.8 25.0 L529.8 25.0 L538.6 25.0 L538.6 25.0 L547.5 25.0 L547.5 25.0 L556.3 25.0 L556.3 25.0 L565.2 25.0 L565.2 25.0 L574.0 25.0 L574.0 25.0 L582.8 25.0 L582.8 25.0 L591.7 25.0 L591.7 25.0 L600.5 25.0 L600.5 25.0 L609.4 25.0 L609.4 25.0 L618.2 25.0 L618.2 25.0 L627.1 25.0 L627.1 25.0 L635.9 25.0 L635.9 25.0 L644.8 25.0 L644.8 25.0 L653.6 25.0 L653.6 25.0 L662.4 25.0 L662.4 25.0 L671.3 25.0 L671.3 25.0 L680.1 25.0 L680.1 25.0 L689.0 25.0 L689.0 25.0 L697.8 25.0 L697.8 25.0 L706.7 25.0 L706.7 25.0 L715.5 25.0 L715.5 25.0 L724.4 25.0 L724.4 25.0 L733.2 25.0 L733.2 25.0 L742.0 25.0 L742.0 25.0 L750.9 25.0 L750.9 25.0 L759.7 25.0 L759.7 25.0 L768.6 25.0 L768.6 25.0 L777.4 25.0 L777.4 25.0 L786.3 25.0 L786.3 25.0 L795.1 25.0 L795.1 25.0 L804.0 25.0 L804.0 25.0 L812.8 25.0 L812.8 25.0 L821.6 25.0 L821.6 25.0 L830.5 25.0 L830.5 25.0 L839.3 25.0 L839.3 25.0 L848.2 25.0 L848.2 25.0 L857.0 25.0 L857.0 25.0 L865.9 25.0 L865.9 25.0 L874.7 25.0 L874.7 25.0 L883.6 25.0 L883.6 25.0 L892.4 25.0 L892.4 25.0 L901.2 25.0 L901.2 25.0 L910.1 25.0 L910.1 25.0 L918.9 25.0 L918.9 25.0 L927.8 25.0 L927.8 25.0 L936.6 25.0 L936.6 25.0 L945.5 25.0 L945.5 25.0 L954.3 25.0 L954.3 25.0 L963.2 25.0 L963.2 25.0 L972.0 25.0 L972.0 74.0 L176.0 74.0 Z"/>
+<path class="line" d="M176.0 25.0 L184.8 25.0 L184.8 25.0 L193.7 25.0 L193.7 25.0 L202.5 25.0 L202.5 25.0 L211.4 25.0 L211.4 25.0 L220.2 25.0 L220.2 25.0 L229.1 25.0 L229.1 25.0 L237.9 25.0 L237.9 25.0 L246.8 25.0 L246.8 25.0 L255.6 25.0 L255.6 25.0 L264.4 25.0 L264.4 25.0 L273.3 25.0 L273.3 25.0 L282.1 25.0 L282.1 25.0 L291.0 25.0 L291.0 25.0 L299.8 25.0 L299.8 25.0 L308.7 25.0 L308.7 25.0 L317.5 25.0 L317.5 25.0 L326.4 25.0 L326.4 25.0 L335.2 25.0 L335.2 25.0 L344.0 25.0 L344.0 25.0 L352.9 25.0 L352.9 25.0 L361.7 25.0 L361.7 25.0 L370.6 25.0 L370.6 25.0 L379.4 25.0 L379.4 25.0 L388.3 25.0 L388.3 25.0 L397.1 25.0 L397.1 25.0 L406.0 25.0 L406.0 25.0 L414.8 25.0 L414.8 25.0 L423.6 25.0 L423.6 25.0 L432.5 25.0 L432.5 25.0 L441.3 25.0 L441.3 25.0 L450.2 25.0 L450.2 25.0 L459.0 25.0 L459.0 25.0 L467.9 25.0 L467.9 25.0 L476.7 25.0 L476.7 25.0 L485.6 25.0 L485.6 25.0 L494.4 25.0 L494.4 25.0 L503.2 25.0 L503.2 25.0 L512.1 25.0 L512.1 25.0 L520.9 25.0 L520.9 25.0 L529.8 25.0 L529.8 25.0 L538.6 25.0 L538.6 25.0 L547.5 25.0 L547.5 25.0 L556.3 25.0 L556.3 25.0 L565.2 25.0 L565.2 25.0 L574.0 25.0 L574.0 25.0 L582.8 25.0 L582.8 25.0 L591.7 25.0 L591.7 25.0 L600.5 25.0 L600.5 25.0 L609.4 25.0 L609.4 25.0 L618.2 25.0 L618.2 25.0 L627.1 25.0 L627.1 25.0 L635.9 25.0 L635.9 25.0 L644.8 25.0 L644.8 25.0 L653.6 25.0 L653.6 25.0 L662.4 25.0 L662.4 25.0 L671.3 25.0 L671.3 25.0 L680.1 25.0 L680.1 25.0 L689.0 25.0 L689.0 25.0 L697.8 25.0 L697.8 25.0 L706.7 25.0 L706.7 25.0 L715.5 25.0 L715.5 25.0 L724.4 25.0 L724.4 25.0 L733.2 25.0 L733.2 25.0 L742.0 25.0 L742.0 25.0 L750.9 25.0 L750.9 25.0 L759.7 25.0 L759.7 25.0 L768.6 25.0 L768.6 25.0 L777.4 25.0 L777.4 25.0 L786.3 25.0 L786.3 25.0 L795.1 25.0 L795.1 25.0 L804.0 25.0 L804.0 25.0 L812.8 25.0 L812.8 25.0 L821.6 25.0 L821.6 25.0 L830.5 25.0 L830.5 25.0 L839.3 25.0 L839.3 25.0 L848.2 25.0 L848.2 25.0 L857.0 25.0 L857.0 25.0 L865.9 25.0 L865.9 25.0 L874.7 25.0 L874.7 25.0 L883.6 25.0 L883.6 25.0 L892.4 25.0 L892.4 25.0 L901.2 25.0 L901.2 25.0 L910.1 25.0 L910.1 25.0 L918.9 25.0 L918.9 25.0 L927.8 25.0 L927.8 25.0 L936.6 25.0 L936.6 25.0 L945.5 25.0 L945.5 25.0 L954.3 25.0 L954.3 25.0 L963.2 25.0 L963.2 25.0 L972.0 25.0"/>
+<text class="label" text-anchor="end" x="164.0" y="40.0">requests waiting</text>
+<text class="muted" text-anchor="end" x="164.0" y="55.0">now 5 · max 5</text>
+<rect class="panel" x="176.0" y="88.0" width="796.0" height="52.0" rx="3"/>
+<path class="area" d="M184.8 137.0 L193.7 137.0 L202.5 137.0 L211.4 137.0 L220.2 137.0 L229.1 137.0 L237.9 137.0 L246.8 137.0 L255.6 137.0 L264.4 137.0 L273.3 137.0 L282.1 137.0 L291.0 137.0 L299.8 137.0 L308.7 137.0 L317.5 137.0 L326.4 137.0 L335.2 137.0 L344.0 137.0 L352.9 137.0 L361.7 137.0 L370.6 137.0 L379.4 137.0 L388.3 137.0 L397.1 137.0 L406.0 137.0 L414.8 137.0 L423.6 137.0 L432.5 137.0 L441.3 137.0 L450.2 137.0 L459.0 137.0 L467.9 137.0 L476.7 137.0 L485.6 137.0 L494.4 137.0 L503.2 137.0 L512.1 137.0 L520.9 137.0 L529.8 137.0 L538.6 137.0 L547.5 137.0 L556.3 137.0 L565.2 137.0 L574.0 137.0 L582.8 137.0 L591.7 137.0 L600.5 137.0 L609.4 137.0 L618.2 137.0 L627.1 137.0 L635.9 137.0 L644.8 137.0 L653.6 137.0 L662.4 137.0 L671.3 137.0 L680.1 137.0 L689.0 137.0 L697.8 137.0 L706.7 137.0 L715.5 137.0 L724.4 137.0 L733.2 137.0 L742.0 137.0 L750.9 137.0 L759.7 137.0 L768.6 137.0 L777.4 137.0 L786.3 137.0 L795.1 137.0 L804.0 137.0 L812.8 137.0 L821.6 137.0 L830.5 137.0 L839.3 137.0 L848.2 137.0 L857.0 137.0 L865.9 137.0 L874.7 137.0 L883.6 137.0 L892.4 137.0 L901.2 137.0 L910.1 137.0 L918.9 137.0 L927.8 137.0 L936.6 137.0 L945.5 137.0 L954.3 137.0 L963.2 137.0 L963.2 140.0 L184.8 140.0 Z"/>
+<path class="line" d="M184.8 137.0 L193.7 137.0 L202.5 137.0 L211.4 137.0 L220.2 137.0 L229.1 137.0 L237.9 137.0 L246.8 137.0 L255.6 137.0 L264.4 137.0 L273.3 137.0 L282.1 137.0 L291.0 137.0 L299.8 137.0 L308.7 137.0 L317.5 137.0 L326.4 137.0 L335.2 137.0 L344.0 137.0 L352.9 137.0 L361.7 137.0 L370.6 137.0 L379.4 137.0 L388.3 137.0 L397.1 137.0 L406.0 137.0 L414.8 137.0 L423.6 137.0 L432.5 137.0 L441.3 137.0 L450.2 137.0 L459.0 137.0 L467.9 137.0 L476.7 137.0 L485.6 137.0 L494.4 137.0 L503.2 137.0 L512.1 137.0 L520.9 137.0 L529.8 137.0 L538.6 137.0 L547.5 137.0 L556.3 137.0 L565.2 137.0 L574.0 137.0 L582.8 137.0 L591.7 137.0 L600.5 137.0 L609.4 137.0 L618.2 137.0 L627.1 137.0 L635.9 137.0 L644.8 137.0 L653.6 137.0 L662.4 137.0 L671.3 137.0 L680.1 137.0 L689.0 137.0 L697.8 137.0 L706.7 137.0 L715.5 137.0 L724.4 137.0 L733.2 137.0 L742.0 137.0 L750.9 137.0 L759.7 137.0 L768.6 137.0 L777.4 137.0 L786.3 137.0 L795.1 137.0 L804.0 137.0 L812.8 137.0 L821.6 137.0 L830.5 137.0 L839.3 137.0 L848.2 137.0 L857.0 137.0 L865.9 137.0 L874.7 137.0 L883.6 137.0 L892.4 137.0 L901.2 137.0 L910.1 137.0 L918.9 137.0 L927.8 137.0 L936.6 137.0 L945.5 137.0 L954.3 137.0 L963.2 137.0"/>
+<text class="label" text-anchor="end" x="164.0" y="106.0">tokens per second</text>
+<text class="muted" text-anchor="end" x="164.0" y="121.0">now 0/s · max 0/s</text>
+<rect class="panel" x="176.0" y="154.0" width="796.0" height="52.0" rx="3"/>
+<line class="thr" x1="176.0" y1="161.6" x2="972.0" y2="161.6"><title>threshold 0.90</title></line>
+<path class="line" d="M176.0 177.7 L184.8 177.2 L193.7 176.8 L202.5 176.3 L211.4 175.9 L220.2 175.4 L229.1 174.9 L237.9 174.5 L246.8 174.0 L255.6 173.6 L264.4 177.7 L273.3 177.2 L282.1 176.8 L291.0 176.3 L299.8 175.9 L308.7 175.4 L317.5 174.9 L326.4 174.5 L335.2 174.0 L344.0 173.6 L352.9 177.7 L361.7 177.2 L370.6 176.8 L379.4 176.3 L388.3 175.9 L397.1 175.4 L406.0 174.9 L414.8 174.5 L423.6 174.0 L432.5 173.6 L441.3 177.7 L450.2 177.2 L459.0 176.8 L467.9 176.3 L476.7 175.9 L485.6 175.4 L494.4 174.9 L503.2 174.5 L512.1 174.0 L520.9 173.6 L529.8 177.7 L538.6 177.2 L547.5 176.8 L556.3 176.3 L565.2 175.9 L574.0 175.4 L582.8 174.9 L591.7 174.5 L600.5 174.0 L609.4 173.6 L618.2 177.7 L627.1 177.2 L635.9 176.8 L644.8 176.3 L653.6 175.9 L662.4 175.4 L671.3 174.9 L680.1 174.5 L689.0 174.0 L697.8 173.6 L706.7 177.7 L715.5 177.2 L724.4 176.8 L733.2 176.3 L742.0 175.9 L750.9 175.4 L759.7 174.9 L768.6 174.5 L777.4 174.0 L786.3 173.6 L795.1 177.7 L804.0 177.2 L812.8 176.8 L821.6 176.3 L830.5 175.9 L839.3 175.4 L848.2 174.9 L857.0 174.5 L865.9 174.0 L874.7 173.6 L883.6 177.7 L892.4 177.2 L901.2 176.8 L910.1 176.3 L918.9 175.9 L927.8 175.4 L936.6 174.9 L945.5 174.5 L954.3 174.0 L963.2 173.6"/>
+<text class="label" text-anchor="end" x="164.0" y="172.0">KV cache used</text>
+<text class="muted" text-anchor="end" x="164.0" y="187.0">now 64% · max 64%</text>
+<text class="muted" x="176.0" y="228.0">what each rule concluded</text>
+<text class="label" text-anchor="end" x="164.0" y="253.0">engine_stalled</text><text class="muted" text-anchor="end" x="164.0" y="267.0">critical</text>
+<rect class="r-unk" x="176.0" y="240.0" width="141.5" height="20.0"><title>engine_stalled: not enough data yet, 0s to 30s</title></rect>
+<rect class="r-crit" x="317.5" y="240.0" width="654.5" height="20.0"><title>engine_stalled: pattern holds (alarm), 32s to 2:58</title></rect>
+<line class="guide-crit" x1="317.5" y1="22.0" x2="317.5" y2="240.0"/><path class="mark-crit" d="M312.5 231.0 L322.5 231.0 L317.5 239.0 Z"><title>engine_stalled fired at 32s</title></path>
+<path class="lens" d="M830.5 265.0 V271.0 M830.5 268.0 H963.2 M963.2 265.0 V271.0"><title>engine_stalled looks back 30s from the latest sample</title></path><text class="muted" text-anchor="start" x="830.5" y="283.0">looks back 30s</text>
+<text class="label" text-anchor="end" x="164.0" y="299.0">kv_thrash</text><text class="muted" text-anchor="end" x="164.0" y="313.0">warning</text>
+<rect class="r-ok" x="176.0" y="286.0" width="796.0" height="20.0"><title>kv_thrash: pattern does not hold, 0s to 2:58</title></rect>
+<path class="lens" d="M874.7 311.0 V317.0 M874.7 314.0 H963.2 M963.2 311.0 V317.0"><title>kv_thrash looks back 20s from the latest sample</title></path><text class="muted" text-anchor="end" x="963.2" y="329.0">looks back 20s</text>
+<text class="label" text-anchor="end" x="164.0" y="345.0">queue_backlog</text><text class="muted" text-anchor="end" x="164.0" y="359.0">warning</text>
+<rect class="r-unk" x="176.0" y="332.0" width="265.3" height="20.0"><title>queue_backlog: not enough data yet, 0s to 58s</title></rect>
+<rect class="r-warn" x="441.3" y="332.0" width="530.7" height="20.0"><title>queue_backlog: pattern holds (alarm), 60s to 2:58</title></rect>
+<line class="guide-warn" x1="441.3" y1="22.0" x2="441.3" y2="332.0"/><path class="mark-warn" d="M436.3 323.0 L446.3 323.0 L441.3 331.0 Z"><title>queue_backlog fired at 60s</title></path>
+<path class="lens" d="M697.8 357.0 V363.0 M697.8 360.0 H963.2 M963.2 357.0 V363.0"><title>queue_backlog looks back 60s from the latest sample</title></path><text class="muted" text-anchor="start" x="697.8" y="375.0">looks back 60s</text>
+<line class="axis" x1="176.0" y1="380.0" x2="972.0" y2="380.0"/>
+<line class="axis" x1="176.0" y1="380.0" x2="176.0" y2="384.0"/><text class="muted" text-anchor="middle" x="176.0" y="396.0">0s</text>
+<line class="axis" x1="264.4" y1="380.0" x2="264.4" y2="384.0"/><text class="muted" text-anchor="middle" x="264.4" y="396.0">20s</text>
+<line class="axis" x1="352.9" y1="380.0" x2="352.9" y2="384.0"/><text class="muted" text-anchor="middle" x="352.9" y="396.0">40s</text>
+<line class="axis" x1="441.3" y1="380.0" x2="441.3" y2="384.0"/><text class="muted" text-anchor="middle" x="441.3" y="396.0">60s</text>
+<line class="axis" x1="529.8" y1="380.0" x2="529.8" y2="384.0"/><text class="muted" text-anchor="middle" x="529.8" y="396.0">80s</text>
+<line class="axis" x1="618.2" y1="380.0" x2="618.2" y2="384.0"/><text class="muted" text-anchor="middle" x="618.2" y="396.0">100s</text>
+<line class="axis" x1="706.7" y1="380.0" x2="706.7" y2="384.0"/><text class="muted" text-anchor="middle" x="706.7" y="396.0">2:00</text>
+<line class="axis" x1="795.1" y1="380.0" x2="795.1" y2="384.0"/><text class="muted" text-anchor="middle" x="795.1" y="396.0">2:20</text>
+<line class="axis" x1="883.6" y1="380.0" x2="883.6" y2="384.0"/><text class="muted" text-anchor="middle" x="883.6" y="396.0">2:40</text>
+<line class="axis" x1="972.0" y1="380.0" x2="972.0" y2="384.0"/><text class="muted" text-anchor="middle" x="972.0" y="396.0">3:00</text>
+<rect class="r-crit" x="176.0" y="411.0" width="14" height="10" rx="2"/><text class="muted" x="196.0" y="420.0">alarm: critical rule's pattern holds</text>
+<rect class="r-warn" x="411.6" y="411.0" width="14" height="10" rx="2"/><text class="muted" x="431.6" y="420.0">alarm: warning rule's pattern holds</text>
+<rect class="r-ok" x="641.6" y="411.0" width="14" height="10" rx="2"/><text class="muted" x="661.6" y="420.0">pattern does not hold</text>
+<rect class="r-unk" x="793.2" y="411.0" width="14" height="10" rx="2"/><text class="muted" x="813.2" y="420.0">not enough data yet</text>
+</svg>

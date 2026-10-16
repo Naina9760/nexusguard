@@ -1,0 +1,16 @@
+name: Feature or new rule
+description: Suggest a rule, a signal or a server to support.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The failure you want to catch
+      description: What does the server do, and what do its metrics look like while it happens?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How you would express it
+      description: A pattern such as "waiting above 10 and token rate below 50 for 30 s".

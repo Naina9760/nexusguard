@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>NexusGuard</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <rect x="1" y="1" width="20" height="20" rx="5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M4 14 L8 14 L10 8 L13 16 L15 11 L18 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <span>NexusGuard</span>
+  </div>
+  <span id="mode" class="badge"></span>
+  <span id="status" class="pill pill-wait" role="status" aria-live="polite">connecting</span>
+  <span class="spacer"></span>
+  <label class="ctl">window
+    <select id="window">
+      <option value="60">60 samples</option>
+      <option value="150" selected>150 samples</option>
+      <option value="300">300 samples</option>
+      <option value="900">900 samples</option>
+    </select>
+  </label>
+  <button id="pause" type="button">Pause</button>
+</header>
+
+<div id="banner" class="banner" hidden></div>
+
+<main>
+  <section class="tiles" aria-label="Current values">
+    <div class="tile"><span class="k">requests waiting</span><span id="v-waiting" class="v">–</span></div>
+    <div class="tile"><span class="k">requests running</span><span id="v-running" class="v">–</span></div>
+    <div class="tile"><span class="k">tokens per second</span><span id="v-tokens" class="v">–</span></div>
+    <div class="tile"><span class="k">KV cache used</span><span id="v-kv" class="v">–</span></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Verdict timeline</h2>
+      <p class="hint">Top: what the server did. Below: what each rule concluded at each moment. Hatched means the rule did not have enough history to decide yet.</p>
+    </div>
+    <div id="timeline" class="timeline" aria-live="off"></div>
+  </section>
+
+  <section>
+    <h2>Rules</h2>
+    <div id="rules" class="rules"></div>
+  </section>
+
+  <section>
+    <h2>Events</h2>
+    <ol id="events" class="events"></ol>
+    <p id="no-events" class="hint">Nothing has fired.</p>
+  </section>
+</main>
+
+<footer>Read-only view. No data leaves this machine through this page.</footer>
+</body>
+</html>

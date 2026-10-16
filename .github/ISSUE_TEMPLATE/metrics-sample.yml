@@ -1,0 +1,24 @@
+name: Metrics from a real server
+description: Share a /metrics page so the metric names can be checked against your server version.
+labels: [real-server]
+body:
+  - type: input
+    id: server
+    attributes:
+      label: Server and version
+      placeholder: vLLM 0.x.y, SGLang x.y, ...
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Output of curl http://your-server/metrics
+      description: Remove anything private (model names, hostnames). Only the lines that mention requests, tokens, cache and preemptions are needed.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What NexusGuard did with it
+      description: For example "serve showed no data", "scrape_failing", or "worked".

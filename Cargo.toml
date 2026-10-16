@@ -1,13 +1,29 @@
 [package]
 name = "nexusguard"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-authors = ["Naina Rathore <your.email@example.com>"]
-description = "A high-performance runtime formal verification and active-defense engine for distributed AI inference infrastructure."
+rust-version = "1.75"
+authors = ["Naina Rathore"]
+description = "A runtime monitor that watches an LLM inference server's Prometheus metrics for stalls, thrashing and backlog using bounded past-time temporal rules."
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/yourusername/nexusguard"
+repository = "https://github.com/Naina9760/nexusguard"
 readme = "README.md"
+keywords = ["llm", "vllm", "runtime-verification", "monitoring", "prometheus"]
+categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+name = "nexusguard"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nexusguard"
+path = "src/main.rs"
 
 [dependencies]
-crossbeam-queue = "0.3"
-arc-swap = "1.6"
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = "2"
+
+[dev-dependencies]
+proptest = "1"
