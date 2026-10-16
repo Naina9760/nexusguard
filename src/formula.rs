@@ -1,23 +1,13 @@
-//! A small bounded past-time temporal logic over observations.
+//! Past-time temporal logic over observations.
 //!
-//! Atoms compare one signal with a constant. The only temporal operators are
-//! `Historically[w]` ("at every observation in the last `w` seconds") and
-//! `Once[w]` ("at some observation in the last `w` seconds"). Both look only
-//! backwards, so a verdict is available the moment a sample arrives, with no
-//! waiting for the future.
+//! Atoms compare a signal with a constant. `Historically[w]` and `Once[w]` look
+//! back `w` seconds, so a verdict is ready as soon as a sample arrives.
 //!
-//! Verdicts are three-valued (Kleene logic). `Unknown` means the data needed is
-//! missing: a signal the server does not export, a rate that needs two scrapes,
-//! a window that reaches back before the first scrape, or a window with a hole
-//! in it (see `max_gap` below). A definite counter-example is still definite
-//! even if the window is not yet full: `Historically[30s] p` is `False` as soon
-//! as one observation violates `p`.
-//!
-//! `max_gap` is the longest silence between two observations that still counts
-//! as continuous coverage. If the scrapes inside a window are further apart
-//! than that, for example because the metrics endpoint stopped answering, the
-//! window is not treated as covered and a rule that would otherwise be `True`
-//! (or `False` for `Once`) becomes `Unknown`.
+//! Verdicts are three-valued (Kleene). `Unknown` means data is missing: a signal
+//! the server does not export, a rate on the first scrape, a window reaching
+//! back before the first sample, or a window with a hole in it. `max_gap` is
+//! the longest silence between samples that still counts as continuous. A
+//! counterexample is definite even in a partial window.
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -147,10 +137,9 @@ fn window(secs: f64) -> f64 {
     }
 }
 
-/// The oldest observation inside the window that starts at `start` and ends at
-/// observation `i`, and whether the window is covered: data reaches back to the
-/// start, and no two neighbouring observations in it (including the one just
-/// before it) are further apart than `max_gap`.
+/// Oldest observation in the window ending at `i`, and whether the window is
+/// covered: data reaches `start` and no neighbours (counting the one just
+/// before the window) are further apart than `max_gap`.
 fn window_coverage(
     obs: &VecDeque<Observation>,
     i: usize,

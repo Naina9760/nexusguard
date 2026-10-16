@@ -33,8 +33,7 @@ pub enum Event {
     ScrapeRecovered { t: f64 },
 }
 
-/// Everything known about one sample after the rules ran on it. The timeline
-/// renderer and the web UI are drawn from these.
+/// One sample after the rules ran on it. The timeline and web UI use these.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Frame {
     pub t: f64,
@@ -96,10 +95,8 @@ impl Monitor {
         }
     }
 
-    /// Observations further apart than this many seconds do not count as
-    /// continuous coverage (see `formula`). Live monitoring sets it from the
-    /// scrape interval, so an outage inside a rule's window cannot be mistaken
-    /// for evidence. The default is no limit.
+    /// Samples further apart than this many seconds are not continuous
+    /// coverage (see `formula`). Default: no limit.
     pub fn with_max_gap(mut self, secs: f64) -> Self {
         self.max_gap = if secs.is_finite() && secs > 0.0 {
             secs
@@ -123,11 +120,8 @@ impl Monitor {
         &self.frames
     }
 
-    /// Adds a sample and returns the rule transitions it caused.
-    ///
-    /// A rule starts firing when its pattern evaluates to `True` and stops when
-    /// it evaluates to `False`. `Unknown` leaves the state unchanged, so a
-    /// missing metric or a short history never raises or clears an alert.
+    /// Adds a sample and returns the rule transitions it caused. A rule starts
+    /// firing on `True` and stops on `False`; `Unknown` changes nothing.
     pub fn ingest(&mut self, sample: Sample) -> Result<Vec<Event>, TraceError> {
         let t = sample.t;
         self.trace.push(sample)?;

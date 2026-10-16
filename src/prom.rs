@@ -1,11 +1,8 @@
-//! Turns a Prometheus text-format page into a [`Sample`].
+//! Turns a Prometheus text page into a `Sample`.
 //!
-//! Each supported server has a [`Profile`]: the metric names for each signal.
-//! Names differ between servers and between versions of the same server (for
-//! example vLLM's KV usage gauge was `vllm:gpu_cache_usage_perc` before
-//! `vllm:kv_cache_usage_perc`), so each field is a list of candidates and the
-//! first one present on the page wins. `docs/VALIDATION.md` records where each
-//! name came from.
+//! Each server has a `Profile` with candidate metric names per signal; the first
+//! name found on the page wins, because names change between versions.
+//! docs/VALIDATION.md records where each name came from.
 
 use std::fmt;
 
@@ -157,11 +154,8 @@ fn profile_for(
     }
 }
 
-/// Builds a sample from a metrics page and says which profile read it.
-///
-/// A server can export one series per model or engine; gauges and counters are
-/// summed across them, and KV usage takes the maximum (the fullest cache is the
-/// one in trouble).
+/// Builds a sample from a page and says which profile read it. Several series
+/// (one per model or engine) are summed; KV usage takes the maximum.
 pub fn parse_page(
     text: &str,
     t: f64,

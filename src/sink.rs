@@ -1,6 +1,5 @@
-//! Where events go: always stdout as one JSON object per line, and optionally
-//! a webhook and/or a local program. Both are opt-in; nothing leaves the
-//! machine unless the operator passes `--webhook` or `--exec`.
+//! Event output: stdout as JSON lines, plus an optional webhook and/or program.
+//! Both are opt-in (`--webhook`, `--exec`).
 
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};

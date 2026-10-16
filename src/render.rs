@@ -1,14 +1,6 @@
-//! The verdict timeline: what the server was doing, and what each rule made of it.
-//!
-//! Three strips show the raw signals (queue length, token output, KV cache
-//! usage). Below them, one ribbon per rule is coloured by the verdict the rule
-//! reached at each moment: the pattern holds (alarm), it does not hold, or
-//! there was not enough data yet. A bracket under each ribbon marks how far
-//! back the rule looks, which is what makes a "not enough data yet" stretch
-//! make sense.
-//!
-//! The picture is drawn from the same [`Frame`]s the monitor produces, so it
-//! cannot disagree with the alerts.
+//! Verdict timeline: raw signals on top, then one ribbon per rule coloured by
+//! its verdict (alarm, ok, not enough data). Drawn from the monitor's frames,
+//! so it matches the alerts.
 
 use std::fmt::Write;
 

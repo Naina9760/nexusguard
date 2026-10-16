@@ -1,9 +1,6 @@
-//! A small read-only web UI. Standard library only: one thread per
-//! connection, three static files, a JSON state endpoint and the timeline SVG.
-//!
-//! It has no authentication. By default it listens on loopback only, and it
-//! refuses requests whose `Host` header is not a loopback name, which stops a
-//! web page in your browser from reading it through DNS rebinding.
+//! Read-only web UI, std only: a thread per connection, three static files, a
+//! JSON state endpoint and the timeline SVG. No auth. It binds to loopback by
+//! default and rejects non-loopback Host headers (DNS rebinding).
 
 use std::collections::VecDeque;
 use std::io::{self, Read, Write};
@@ -29,7 +26,7 @@ const MAX_EVENTS: usize = 100;
 const CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
 connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
-/// What the web UI shows. Written by the scrape loop, read by request threads.
+/// State shown by the web UI: written by the scrape loop, read by request threads.
 pub struct Shared {
     pub monitor: Monitor,
     pub events: VecDeque<Event>,

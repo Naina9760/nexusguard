@@ -2,12 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-/// A single scrape of the server's metrics.
-///
-/// `running`, `waiting` and `generation_tokens_total` are required because every
-/// built-in rule needs them. The rest are optional: servers and versions
-/// differ, and a rule that needs a missing signal reports `Unknown` instead of
-/// pretending the value was zero.
+/// One scrape. The first three metrics are required; the rest are optional,
+/// and a rule that needs a missing one reports `Unknown`, not zero.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Sample {
     /// Seconds on any monotonic clock. Only differences matter.
@@ -18,9 +14,7 @@ pub struct Sample {
     pub waiting: f64,
     /// Cumulative generated tokens (a counter).
     pub generation_tokens_total: f64,
-    /// Cumulative prompt tokens processed (a counter). Servers update it as
-    /// prefill proceeds, so it moves while a long prompt is being read even
-    /// though no token has been generated yet.
+    /// Cumulative prompt tokens processed (counter). Moves during a long prefill.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt_tokens_total: Option<f64>,
     /// Fraction of KV cache in use, 0.0 to 1.0.
@@ -43,10 +37,7 @@ impl Sample {
     }
 }
 
-/// A sample plus the per-second rates computed against the previous sample.
-///
-/// The first observation in a trace has no rates (`None`), so any rule that
-/// depends on a rate is `Unknown` there.
+/// A sample plus rates against the previous one. The first has none.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Observation {
     pub sample: Sample,
@@ -56,19 +47,14 @@ pub struct Observation {
 }
 
 impl Observation {
-    /// Tokens per second of any kind: generated plus prompt tokens processed.
-    ///
-    /// A long prompt being read produces no output tokens for a while but is
-    /// still progress. A server that does not export a prompt counter is
-    /// treated as having no prompt progress.
+    /// Generated plus prompt tokens per second. No prompt counter counts as zero.
     pub fn progress_rate(&self) -> Option<f64> {
         self.token_rate.map(|t| t + self.prompt_rate.unwrap_or(0.0))
     }
 }
 
-/// Increase of a counter between two scrapes, following the Prometheus rule
-/// for resets: if the counter went down, the server restarted and the new
-/// value is everything counted since the restart.
+/// Counter increase between scrapes. A drop means a restart, so the new value
+/// is the increase (same rule as Prometheus).
 pub(crate) fn counter_increase(prev: f64, cur: f64) -> f64 {
     if cur >= prev {
         cur - prev

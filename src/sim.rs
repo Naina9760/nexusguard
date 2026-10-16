@@ -1,7 +1,5 @@
-//! Deterministic synthetic traces, so the rules can be demonstrated and tested
-//! without a GPU or a running server. These are not recordings of a real
-//! server. They are shaped after the symptoms the rules look for, and the two
-//! `hang-*` scenarios follow the numbers people pasted into vLLM issue #18431.
+//! Synthetic traces for demos and tests. They are not recordings of a real
+//! server. The `hang-*` scenarios follow numbers posted in vLLM issue #18431.
 
 use crate::sample::Sample;
 

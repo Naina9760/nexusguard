@@ -27,10 +27,8 @@ impl fmt::Display for TraceError {
 
 impl std::error::Error for TraceError {}
 
-/// Keeps roughly the last `retention` seconds of observations.
-///
-/// One observation at or before the cut-off is always kept, so a rule whose
-/// window equals the retention can still tell that its window is fully covered.
+/// Keeps about the last `retention` seconds. One observation at or before the
+/// cut-off stays, so a window of exactly that length still counts as covered.
 #[derive(Debug, Clone)]
 pub struct Trace {
     observations: VecDeque<Observation>,

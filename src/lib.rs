@@ -1,11 +1,8 @@
-//! NexusGuard watches an LLM inference server's metrics and reports when a
-//! bounded temporal rule says something is wrong: output has stalled with
-//! requests queued, the KV cache is thrashing, or the queue is not draining.
+//! Runtime monitor for LLM inference servers. Reads a /metrics page, keeps a
+//! short history and checks temporal rules over it.
 //!
-//! Pipeline: [`prom`] turns a scrape into a [`sample::Sample`]; [`trace`] keeps
-//! a bounded history and derives rates; [`formula`] evaluates past-time
-//! temporal formulas over it; [`rules`] are the built-in formulas; [`monitor`]
-//! turns verdict changes into [`monitor::Event`]s.
+//! prom -> sample -> trace -> formula / rules -> monitor -> events.
+//! render and serve draw what the monitor recorded.
 
 pub mod formula;
 pub mod monitor;
