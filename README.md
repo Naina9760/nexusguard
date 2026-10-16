@@ -17,7 +17,7 @@ cargo build --release
 ./target/release/nexusguard serve --demo stall
 ```
 
-Open http://127.0.0.1:9100. The demo plays a synthetic server that stops making progress 40 seconds in (simulated time, replayed at two samples per second). `engine_stalled` fires at 70 s and `queue_backlog` at 94 s. Other demos: `healthy`, `thrash`, `attached-stalled`, `idle`, `long-prefill`, `hang-running-only`, `hang-saturated`.
+While that command is running, open `http://127.0.0.1:9100` in a browser on the same machine. The address only exists while the command runs, and stops working when you press Ctrl-C. The demo plays a synthetic server that stops making progress 40 seconds in (simulated time, replayed at two samples per second). `engine_stalled` fires at 70 s and `queue_backlog` at 94 s. Other demos: `healthy`, `thrash`, `attached-stalled`, `idle`, `long-prefill`, `hang-running-only`, `hang-saturated`.
 
 To watch a real server:
 
